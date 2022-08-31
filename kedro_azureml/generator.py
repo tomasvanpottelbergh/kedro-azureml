@@ -10,6 +10,7 @@ from azure.ai.ml.entities._builders import Command
 from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
+from kedro_azureml.client import _get_azureml_client
 from kedro_azureml.config import KedroAzureMLConfig, KedroAzureRunnerConfig
 from kedro_azureml.constants import KEDRO_AZURE_RUNNER_CONFIG
 
@@ -22,20 +23,26 @@ class AzureMLPipelineGenerator:
         pipeline_name: str,
         kedro_environment: str,
         config: KedroAzureMLConfig,
-        docker_image: Optional[str] = None,
+        environment_name: Optional[str] = None,
         params: Optional[str] = None,
         storage_account_key: Optional[str] = "",
     ):
         self.storage_account_key = storage_account_key
         self.kedro_environment = kedro_environment
         self.params = params
-        self.docker_image = docker_image
+        self.environment_name = environment_name
         self.config = config
         self.pipeline_name = pipeline_name
 
     def generate(self) -> Job:
         pipeline = self.get_kedro_pipeline()
         kedro_azure_run_id = uuid4().hex
+
+        with _get_azureml_client(self.config.azure) as ml_client:
+            environment = ml_client.environments.get(
+                self.environment_name or self.config.azure.environment_name,
+                label="latest",
+            )
 
         logger.info(f"Translating {self.pipeline_name} to Azure ML Pipeline")
 
@@ -44,7 +51,7 @@ class AzureMLPipelineGenerator:
 
             for node in pipeline.nodes:
                 azure_command = self._construct_azure_command(
-                    pipeline, node, kedro_azure_run_id
+                    pipeline, node, kedro_azure_run_id, environment
                 )
 
                 commands[node.name] = azure_command
@@ -82,6 +89,7 @@ class AzureMLPipelineGenerator:
         pipeline: Pipeline,
         node: Node,
         kedro_azure_run_id: str,
+        environment: Environment,
     ):
         # TODO - config can probably expose compute-per-step setting, to allow different steps to be scheduled on different machine types # noqa
         return command(
@@ -95,9 +103,7 @@ class AzureMLPipelineGenerator:
                     storage_account_key=self.storage_account_key,
                 ).json(),
             },
-            environment=Environment(
-                image=self.docker_image or self.config.docker.image
-            ),
+            environment=environment,
             inputs={
                 self._sanitize_param_name(name): (
                     Input(type="string") if name in pipeline.inputs() else Input()

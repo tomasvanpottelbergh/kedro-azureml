@@ -2,10 +2,6 @@ import yaml
 from pydantic import BaseModel
 
 
-class DockerConfig(BaseModel):
-    image: str
-
-
 class AzureTempStorageConfig(BaseModel):
     account_name: str
     container: str
@@ -13,15 +9,16 @@ class AzureTempStorageConfig(BaseModel):
 
 class AzureMLConfig(BaseModel):
     experiment_name: str
+    subscription_id: str
     workspace_name: str
     resource_group: str
     cluster_name: str
     temporary_storage: AzureTempStorageConfig
+    environment_name: str
 
 
 class KedroAzureMLConfig(BaseModel):
     azure: AzureMLConfig
-    docker: DockerConfig
 
 
 class KedroAzureRunnerConfig(BaseModel):
@@ -41,6 +38,8 @@ azure:
   resource_group: "{resource_group}"
   # Azure ML Workspace name
   workspace_name: "{workspace_name}"
+  # Azure subscription ID to use
+  subscription_id: "{subscription_id}"
 
   # Temporary storage settings - this is used to pass some data between steps
   # if the data is not specified in the catalog directly
@@ -52,9 +51,8 @@ azure:
     account_name: "{storage_account_name}"
     # Name of the storage container
     container: "{storage_container}"
-docker:
-  # Docker image to use during pipeline execution
-  image: "{docker_image}"
+  # Azure ML Environment to use during pipeline execution
+  environment_name: "{environment_name}"
 """.strip()
 
 # This auto-validates the template above during import

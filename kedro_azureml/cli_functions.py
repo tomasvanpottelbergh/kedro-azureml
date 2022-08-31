@@ -9,7 +9,7 @@ from kedro_azureml.utils import CliContext, KedroContextManager
 
 
 @contextmanager
-def get_context_and_pipeline(ctx: CliContext, image: str, pipeline: str, params):
+def get_context_and_pipeline(ctx: CliContext, environment: str, pipeline: str, params):
     with KedroContextManager(ctx.metadata.package_name, ctx.env) as mgr:
         storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY", "")
         if not storage_account_key:
@@ -26,7 +26,12 @@ def get_context_and_pipeline(ctx: CliContext, image: str, pipeline: str, params)
             )
 
         generator = AzureMLPipelineGenerator(
-            pipeline, ctx.env, mgr.plugin_config, image, params, storage_account_key
+            pipeline,
+            ctx.env,
+            mgr.plugin_config,
+            environment,
+            params,
+            storage_account_key,
         )
         az_pipeline = generator.generate()
         yield mgr, az_pipeline

@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _get_azureml_client(subscription_id: str, config: AzureMLConfig):
+def _get_azureml_client(config: AzureMLConfig):
     client_config = {
-        "subscription_id": subscription_id,
+        "subscription_id": config.subscription_id,
         "resource_group": config.resource_group,
         "workspace_name": config.workspace_name,
     }
@@ -40,8 +40,7 @@ def _get_azureml_client(subscription_id: str, config: AzureMLConfig):
 
 
 class AzureMLPipelinesClient:
-    def __init__(self, azure_pipeline: Job, subscription_id: str):
-        self.subscription_id = subscription_id
+    def __init__(self, azure_pipeline: Job):
         self.azure_pipeline = azure_pipeline
 
     def run(
@@ -50,7 +49,7 @@ class AzureMLPipelinesClient:
         wait_for_completion=False,
         on_job_scheduled: Optional[Callable[[Job], None]] = None,
     ) -> bool:
-        with _get_azureml_client(self.subscription_id, config) as ml_client:
+        with _get_azureml_client(config) as ml_client:
             assert (
                 cluster := ml_client.compute.get(config.cluster_name)
             ), f"Cluster {config.cluster_name} does not exist"
