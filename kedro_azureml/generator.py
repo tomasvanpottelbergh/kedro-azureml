@@ -5,12 +5,11 @@ from uuid import uuid4
 
 from azure.ai.ml import Input, Output, command
 from azure.ai.ml.dsl import pipeline as azure_pipeline
-from azure.ai.ml.entities import Environment, Job
+from azure.ai.ml.entities import Job
 from azure.ai.ml.entities._builders import Command
 from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
-from kedro_azureml.client import _get_azureml_client
 from kedro_azureml.config import KedroAzureMLConfig, KedroAzureRunnerConfig
 from kedro_azureml.constants import KEDRO_AZURE_RUNNER_CONFIG
 
@@ -38,12 +37,6 @@ class AzureMLPipelineGenerator:
         pipeline = self.get_kedro_pipeline()
         kedro_azure_run_id = uuid4().hex
 
-        with _get_azureml_client(self.config.azure) as ml_client:
-            environment = ml_client.environments.get(
-                self.environment_name or self.config.azure.environment_name,
-                label="latest",
-            )
-
         logger.info(f"Translating {self.pipeline_name} to Azure ML Pipeline")
 
         def kedro_azure_pipeline_fn():
@@ -51,7 +44,7 @@ class AzureMLPipelineGenerator:
 
             for node in pipeline.nodes:
                 azure_command = self._construct_azure_command(
-                    pipeline, node, kedro_azure_run_id, environment
+                    pipeline, node, kedro_azure_run_id
                 )
 
                 commands[node.name] = azure_command
@@ -89,7 +82,6 @@ class AzureMLPipelineGenerator:
         pipeline: Pipeline,
         node: Node,
         kedro_azure_run_id: str,
-        environment: Environment,
     ):
         # TODO - config can probably expose compute-per-step setting, to allow different steps to be scheduled on different machine types # noqa
         return command(
@@ -103,7 +95,7 @@ class AzureMLPipelineGenerator:
                     storage_account_key=self.storage_account_key,
                 ).json(),
             },
-            environment=environment,
+            environment=self.environment_name or self.config.azure.environment_name,
             inputs={
                 self._sanitize_param_name(name): (
                     Input(type="string") if name in pipeline.inputs() else Input()
