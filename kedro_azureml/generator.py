@@ -105,6 +105,7 @@ class AzureMLPipelineGenerator:
             outputs={
                 self._sanitize_param_name(name): Output() for name in node.outputs
             },
+            code=".",
         )
 
     def _gather_pipeline_outputs(self, pipeline: Pipeline, invoked_components):
@@ -162,7 +163,7 @@ class AzureMLPipelineGenerator:
             else []
         )
         return (
-            f"cd /home/kedro && kedro azureml -e {self.kedro_environment} execute --pipeline={self.pipeline_name} --node={node.name} "  # noqa
+            f"kedro azureml -e {self.kedro_environment} execute --pipeline={self.pipeline_name} --node={node.name} "  # noqa
             + " ".join(azure_outputs)
             + (f" --params='{self.params}'" if self.params else "")
         ).strip()
