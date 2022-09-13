@@ -1,7 +1,6 @@
 import logging
 import re
 from typing import Dict, Optional
-from uuid import uuid4
 
 from azure.ai.ml import Input, Output, command
 from azure.ai.ml.dsl import pipeline as azure_pipeline
@@ -23,9 +22,7 @@ class AzureMLPipelineGenerator:
         config: KedroAzureMLConfig,
         docker_image: Optional[str] = None,
         params: Optional[str] = None,
-        storage_account_key: Optional[str] = "",
     ):
-        self.storage_account_key = storage_account_key
         self.kedro_environment = kedro_environment
         self.params = params
         self.docker_image = docker_image
@@ -34,7 +31,6 @@ class AzureMLPipelineGenerator:
 
     def generate(self) -> Job:
         pipeline = self.get_kedro_pipeline()
-        kedro_azure_run_id = uuid4().hex
 
         logger.info(f"Translating {self.pipeline_name} to Azure ML Pipeline")
 
@@ -42,9 +38,7 @@ class AzureMLPipelineGenerator:
             commands = {}
 
             for node in pipeline.nodes:
-                azure_command = self._construct_azure_command(
-                    pipeline, node, kedro_azure_run_id
-                )
+                azure_command = self._construct_azure_command(pipeline, node)
 
                 commands[node.name] = azure_command
 

@@ -29,16 +29,6 @@ azure:
   # Azure ML Workspace name
   workspace_name: "{workspace_name}"
 
-  # Temporary storage settings - this is used to pass some data between steps
-  # if the data is not specified in the catalog directly
-  temporary_storage:
-    # Azure Storage account name, where the temp data should be stored
-    # It's recommended to set Lifecycle management rule for storage container, to avoid costs of long-term storage
-    # of the temporary data. Temporary data will be stored under abfs://<containter>/kedro-azureml-temp path
-    # See https://docs.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-policy-configure?tabs=azure-portal
-    account_name: "{storage_account_name}"
-    # Name of the storage container
-    container: "{storage_container}"
 docker:
   # Docker image to use during pipeline execution
   image: "{docker_image}"
