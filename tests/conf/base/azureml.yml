@@ -3,5 +3,6 @@ azure:
   experiment_name: "kedro-azure-experiment"
   resource_group: "rg"
   workspace_name: "workspace"
+  environment_name: "kedro-azure-env"
 docker:
   image: "dummy:latest"

@@ -11,6 +11,7 @@ class AzureMLConfig(BaseModel):
     workspace_name: str
     resource_group: str
     cluster_name: str
+    environment_name: str
 
 
 class KedroAzureMLConfig(BaseModel):
@@ -28,6 +29,8 @@ azure:
   resource_group: "{resource_group}"
   # Azure ML Workspace name
   workspace_name: "{workspace_name}"
+  # Azure ML Environment to use during pipeline execution
+  environment_name: "{environment_name}"
 
 docker:
   # Docker image to use during pipeline execution
