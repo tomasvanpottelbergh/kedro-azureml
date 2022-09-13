@@ -12,7 +12,6 @@ class AzurePipelinesRunner(SequentialRunner):
     def __init__(self, is_async: bool = False, data_paths: Dict[str, str] = dict()):
         super().__init__(is_async)
         self.data_paths = data_paths
-        print(data_paths)
 
     def run(
         self,
