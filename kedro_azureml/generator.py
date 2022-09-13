@@ -10,8 +10,7 @@ from azure.ai.ml.entities._builders import Command
 from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
-from kedro_azureml.config import KedroAzureMLConfig, KedroAzureRunnerConfig
-from kedro_azureml.constants import KEDRO_AZURE_RUNNER_CONFIG
+from kedro_azureml.config import KedroAzureMLConfig
 
 logger = logging.getLogger(__name__)
 
@@ -81,20 +80,12 @@ class AzureMLPipelineGenerator:
         self,
         pipeline: Pipeline,
         node: Node,
-        kedro_azure_run_id: str,
     ):
         # TODO - config can probably expose compute-per-step setting, to allow different steps to be scheduled on different machine types # noqa
         return command(
             name=self._sanitize_azure_name(node.name),
             display_name=node.name,
             command=self._prepare_command(node),
-            environment_variables={
-                KEDRO_AZURE_RUNNER_CONFIG: KedroAzureRunnerConfig(
-                    temporary_storage=self.config.azure.temporary_storage,
-                    run_id=kedro_azure_run_id,
-                    storage_account_key=self.storage_account_key,
-                ).json(),
-            },
             environment=Environment(
                 image=self.docker_image or self.config.docker.image
             ),

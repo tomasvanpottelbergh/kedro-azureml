@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import click
 from kedro.framework.startup import ProjectMetadata
@@ -248,24 +248,25 @@ def compile(
     help="Parameters override in form of `key=value`",
 )
 @click.option(
-    "--az-output",
-    "azure_outputs",
-    type=str,
+    "--data-path",
+    "data_paths",
+    type=(str, click.Path(exists=True, file_okay=False, dir_okay=True)),
     multiple=True,
     help="Paths of Azure ML Pipeline outputs to save dummy data into",
 )
 @click.pass_obj
 def execute(
-    ctx: CliContext, pipeline: str, node: str, params: str, azure_outputs: List[str]
+    ctx: CliContext,
+    pipeline: str,
+    node: str,
+    params: str,
+    data_paths: List[Tuple[str, str]],
 ):
-    # 1. Run kedro
     parameters = parse_extra_params(params)
+    data_paths = {ds_name: data_path for ds_name, data_path in data_paths}
+
     with KedroContextManager(
         ctx.metadata.package_name, env=ctx.env, extra_params=parameters
     ) as mgr:
-        runner = AzurePipelinesRunner()
+        runner = AzurePipelinesRunner(data_paths=data_paths)
         mgr.session.run(pipeline, node_names=[node], runner=runner)
-
-    # 2. Save dummy outputs
-    for dummy_output in azure_outputs:
-        (Path(dummy_output) / "output.txt").write_text("#getindata")

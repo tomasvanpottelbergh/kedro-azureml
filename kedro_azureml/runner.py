@@ -1,23 +1,18 @@
-import os
+from pathlib import Path
 from typing import Any, Dict
 
+from kedro.extras.datasets.pickle.pickle_dataset import PickleDataSet
 from kedro.io import AbstractDataSet, DataCatalog
 from kedro.pipeline import Pipeline
 from kedro.runner import SequentialRunner
 from pluggy import PluginManager
 
-from kedro_azureml.config import KedroAzureRunnerConfig
-from kedro_azureml.constants import KEDRO_AZURE_RUNNER_CONFIG
-from kedro_azureml.datasets import KedroAzureRunnerDataset
-
 
 class AzurePipelinesRunner(SequentialRunner):
-    def __init__(self, is_async: bool = False):
+    def __init__(self, is_async: bool = False, data_paths: Dict[str, str] = dict()):
         super().__init__(is_async)
-        self.runner_config_raw = os.environ.get(KEDRO_AZURE_RUNNER_CONFIG)
-        self.runner_config: KedroAzureRunnerConfig = KedroAzureRunnerConfig.parse_raw(
-            self.runner_config_raw
-        )
+        self.data_paths = data_paths
+        print(data_paths)
 
     def run(
         self,
@@ -34,12 +29,4 @@ class AzurePipelinesRunner(SequentialRunner):
         return super().run(pipeline, catalog, hook_manager, session_id)
 
     def create_default_data_set(self, ds_name: str) -> AbstractDataSet:
-        # TODO: handle credentials better (probably with built-in Kedro credentials
-        #  via ConfigLoader (but it's not available here...)
-        return KedroAzureRunnerDataset(
-            self.runner_config.temporary_storage.account_name,
-            self.runner_config.temporary_storage.container,
-            self.runner_config.storage_account_key,
-            ds_name,
-            self.runner_config.run_id,
-        )
+        return PickleDataSet(str(Path(self.data_paths[ds_name]) / f"{ds_name}.pickle"))

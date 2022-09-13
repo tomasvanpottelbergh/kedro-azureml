@@ -7,13 +7,7 @@ from uuid import uuid4
 import pytest
 from kedro.pipeline import Pipeline, node, pipeline
 
-from kedro_azureml.config import (
-    _CONFIG_TEMPLATE,
-    AzureTempStorageConfig,
-    KedroAzureMLConfig,
-    KedroAzureRunnerConfig,
-)
-from kedro_azureml.constants import KEDRO_AZURE_RUNNER_CONFIG
+from kedro_azureml.config import _CONFIG_TEMPLATE, KedroAzureMLConfig
 from kedro_azureml.datasets import KedroAzureRunnerDataset
 from kedro_azureml.runner import AzurePipelinesRunner
 from kedro_azureml.utils import CliContext
@@ -68,14 +62,6 @@ def patched_azure_dataset():
 def patched_azure_runner(patched_azure_dataset):
     backup = os.environ.copy()
     try:
-        cfg = KedroAzureRunnerConfig(
-            temporary_storage=AzureTempStorageConfig(
-                account_name="unit_test", container="container"
-            ),
-            run_id=uuid4().hex,
-            storage_account_key="",
-        )
-        os.environ[KEDRO_AZURE_RUNNER_CONFIG] = cfg.json()
         yield AzurePipelinesRunner()
     except Exception:
         pass
