@@ -11,6 +11,7 @@ class DockerConfig(BaseModel):
 class AzureMLConfig(BaseModel):
     experiment_name: str
     workspace_name: str
+    subscription_id: str
     resource_group: str
     cluster_name: str
     environment_name: str
@@ -31,6 +32,8 @@ azure:
   resource_group: "{resource_group}"
   # Azure ML Workspace name
   workspace_name: "{workspace_name}"
+  # Azure subscription ID to use
+  subscription_id: "{subscription_id}"
   # Azure ML Environment to use during pipeline execution
   environment_name: "{environment_name}"
 
