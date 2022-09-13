@@ -1,3 +1,5 @@
+from typing import Optional
+
 import yaml
 from pydantic import BaseModel
 
@@ -16,7 +18,7 @@ class AzureMLConfig(BaseModel):
 
 class KedroAzureMLConfig(BaseModel):
     azure: AzureMLConfig
-    docker: DockerConfig
+    docker: Optional[DockerConfig]
 
 
 CONFIG_TEMPLATE_YAML = """
