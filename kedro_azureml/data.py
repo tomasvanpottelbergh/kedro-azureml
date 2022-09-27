@@ -6,6 +6,8 @@ from azure.ai.ml import MLClient
 from azure.ai.ml._artifacts._artifact_utilities import (
     download_artifact_from_aml_uri,
 )
+from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml.entities import Data
 from azure.identity import DefaultAzureCredential
 from kedro.extras.datasets.pandas import ParquetDataSet
 
@@ -35,28 +37,41 @@ from kedro.extras.datasets.pandas import ParquetDataSet
 """
 
 
-class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit from VersionedDataSet
+class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make mixin?
     def __init__(self, filepath, name) -> None:
         super().__init__(filepath=filepath)  # TODO: add other kwargs
         self._name = name
 
-    def _load(self) -> pd.DataFrame:
-        # with _get_azureml_client(None, self._amlconfig) as ml_client:
-
         # TODO: read from credentials?
         # https://kedro.readthedocs.io/en/stable/data/data_catalog.html#feeding-in-credentials
-        ml_client = MLClient.from_config(
+        self._ml_client = MLClient.from_config(
             DefaultAzureCredential(), "./conf/base/aml_config.json"
         )
 
-        data = ml_client.data.get(self._name, label="latest")
+    def _load(self) -> pd.DataFrame:
+        # with _get_azureml_client(None, self._amlconfig) as ml_client:
+
+        data = self._ml_client.data.get(self._name, label="latest")
         # Remove workspaces part from path
         path = re.sub("workspaces/([^/]+)/", "", data.path)
         download_artifact_from_aml_uri(
-            path, Path(self._filepath).parent, ml_client.datastores
+            path, Path(self._filepath).parent, self._ml_client.datastores
         )
 
         # TODO: check whether file exists at path/rename
         # filename = path.split("/")[-1]
 
         return super()._load()
+
+    def _save(self, data: pd.DataFrame) -> None:
+        super()._save(data)
+
+        data_asset = Data(
+            path=self._filepath,
+            type=AssetTypes.URI_FILE,
+            # description="",
+            name=self._name,
+            # version="1"
+        )
+
+        self._ml_client.data.create_or_update(data_asset)
