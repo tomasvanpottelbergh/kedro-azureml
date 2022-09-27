@@ -1,4 +1,5 @@
 import re
+from abc import ABCMeta
 from pathlib import Path
 from typing import Any, Dict
 
@@ -11,38 +12,32 @@ from azure.ai.ml.constants import AssetTypes
 from azure.ai.ml.entities import Data
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
-from kedro.extras.datasets.pandas import ParquetDataSet
-from kedro.io.core import Version, get_protocol_and_path
-
-"""
-        >>> from pathlib import Path, PurePosixPath
-        >>> import pandas as pd
-        >>> from kedro.io import AbstractDataSet
-        >>>
-        >>>
-        >>> class MyOwnDataSet(AbstractDataSet[pd.DataFrame, pd.DataFrame]):
-        >>>     def __init__(self, filepath, param1, param2=True):
-        >>>         self._filepath = PurePosixPath(filepath)
-        >>>         self._param1 = param1
-        >>>         self._param2 = param2
-        >>>
-        >>>     def _load(self) -> pd.DataFrame:
-        >>>         return pd.read_csv(self._filepath)
-        >>>
-        >>>     def _save(self, df: pd.DataFrame) -> None:
-        >>>         df.to_csv(str(self._filepath))
-        >>>
-        >>>     def _exists(self) -> bool:
-        >>>         return Path(self._filepath.as_posix()).exists()
-        >>>
-        >>>     def _describe(self):
-        >>>         return dict(param1=self._param1, param2=self._param2)
-"""
+from kedro.io.core import (
+    AbstractVersionedDataSet,
+    Version,
+    get_protocol_and_path,
+    parse_dataset_definition,
+)
 
 
-class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make mixin?
+class DynamicInheritance(ABCMeta):  # FIXME: classes using this are considered abstract
+    def __call__(cls, supertype, *args, **kwargs):
+
+        if not isinstance(supertype, str):
+            raise TypeError("Parameter 'supertype' must be a string")
+
+        # Resolve supertype string to type
+        supertype_cls, _ = parse_dataset_definition({"type": supertype})
+
+        new_cls = type(cls.__name__, (cls, supertype_cls), {})
+
+        return super(DynamicInheritance, new_cls).__call__(supertype, *args, **kwargs)
+
+
+class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
     def __init__(
         self,
+        supertype: str,
         filepath: str,
         name: str,
         load_args: Dict[str, Any] = None,
