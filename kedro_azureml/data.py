@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import Any, Dict
 
 import pandas as pd
 from azure.ai.ml import MLClient
@@ -8,6 +9,7 @@ from azure.ai.ml._artifacts._artifact_utilities import (
 )
 from azure.ai.ml.constants import AssetTypes
 from azure.ai.ml.entities import Data
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from kedro.extras.datasets.pandas import ParquetDataSet
 
@@ -69,9 +71,20 @@ class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make 
         data_asset = Data(
             path=self._filepath,
             type=AssetTypes.URI_FILE,
-            # description="",
+            description="Data asset registered by the kedro-azureml plugin",
             name=self._name,
             # version="1"
         )
 
         self._ml_client.data.create_or_update(data_asset)
+
+    def _exists(self) -> bool:
+        try:
+            self._ml_client.data.get(self._name, label="latest")
+        except ResourceNotFoundError:
+            return False
+
+        return True
+
+    def _describe(self) -> Dict[str, Any]:
+        return dict(name=self._name, **super()._describe())
