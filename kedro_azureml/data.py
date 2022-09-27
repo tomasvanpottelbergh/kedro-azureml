@@ -12,6 +12,7 @@ from azure.ai.ml.entities import Data
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from kedro.extras.datasets.pandas import ParquetDataSet
+from kedro.io.core import Version, get_protocol_and_path
 
 """
         >>> from pathlib import Path, PurePosixPath
@@ -40,9 +41,32 @@ from kedro.extras.datasets.pandas import ParquetDataSet
 
 
 class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make mixin?
-    def __init__(self, filepath, name) -> None:
-        super().__init__(filepath=filepath)  # TODO: add other kwargs
+    def __init__(
+        self,
+        filepath: str,
+        name: str,
+        load_args: Dict[str, Any] = None,
+        save_args: Dict[str, Any] = None,
+        version: Version = None,
+        credentials: Dict[str, Any] = None,
+        fs_args: Dict[str, Any] = None,
+    ) -> None:
+
+        protocol, _ = get_protocol_and_path(filepath, version)
+        if protocol != "file":
+            raise ValueError("Filepath can only be local path")
+
+        super().__init__(
+            filepath=filepath,
+            load_args=load_args,
+            save_args=save_args,
+            version=None,  # Do not apply versioning to local files
+            credentials=credentials,
+            fs_args=fs_args,
+        )
+
         self._name = name
+        self.__version = version
 
         # TODO: read from credentials?
         # https://kedro.readthedocs.io/en/stable/data/data_catalog.html#feeding-in-credentials
@@ -52,10 +76,18 @@ class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make 
 
     def _load(self) -> pd.DataFrame:
         # with _get_azureml_client(None, self._amlconfig) as ml_client:
+        if self.__version and self.__version.load:
+            version, label = self.__version.load, None
+        else:
+            version, label = None, "latest"
 
-        data = self._ml_client.data.get(self._name, label="latest")
-        # Remove workspaces part from path
+        data = self._ml_client.data.get(self._name, version=version, label=label)
+
+        # Convert to short URI format to avoid problems
         path = re.sub("workspaces/([^/]+)/", "", data.path)
+        path = re.sub("subscriptions/([^/]+)/", "", path)
+        path = re.sub("resource[gG]roups/([^/]+)/", "", path)
+
         download_artifact_from_aml_uri(
             path, Path(self._filepath).parent, self._ml_client.datastores
         )
@@ -73,7 +105,6 @@ class AzureMLParquetDataSet(ParquetDataSet):  # TODO: inherit dynamically? make 
             type=AssetTypes.URI_FILE,
             description="Data asset registered by the kedro-azureml plugin",
             name=self._name,
-            # version="1"
         )
 
         self._ml_client.data.create_or_update(data_asset)
