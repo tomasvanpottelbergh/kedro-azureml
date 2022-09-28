@@ -1,7 +1,9 @@
 import inspect
+import json
 import re
 from abc import ABCMeta
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
 import pandas as pd
@@ -78,11 +80,13 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         self._name = name
         self.__version = version
 
-        # TODO: read from credentials?
-        # https://kedro.readthedocs.io/en/stable/data/data_catalog.html#feeding-in-credentials
-        self._ml_client = MLClient.from_config(
-            DefaultAzureCredential(), "./conf/base/aml_config.json"
-        )
+        # TODO: support other authentication methods
+        with TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "config.json"
+            config_path.write_text(json.dumps(credentials))
+            self._ml_client = MLClient.from_config(
+                credential=DefaultAzureCredential(), path=str(config_path.absolute())
+            )
 
     def _load(self) -> pd.DataFrame:
         # with _get_azureml_client(None, self._amlconfig) as ml_client:
