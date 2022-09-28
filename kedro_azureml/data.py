@@ -1,3 +1,4 @@
+import inspect
 import re
 from abc import ABCMeta
 from pathlib import Path
@@ -20,9 +21,9 @@ from kedro.io.core import (
 )
 
 
-class DynamicInheritance(ABCMeta):  # FIXME: classes using this are considered abstract
+class DynamicInheritance(ABCMeta):
     def __call__(cls, supertype, *args, **kwargs):
-
+        """Dynamically set the the superclass based on the supertype argument."""
         if not isinstance(supertype, str):
             raise TypeError("Parameter 'supertype' must be a string")
 
@@ -32,6 +33,20 @@ class DynamicInheritance(ABCMeta):  # FIXME: classes using this are considered a
         new_cls = type(cls.__name__, (cls, supertype_cls), {})
 
         return super(DynamicInheritance, new_cls).__call__(supertype, *args, **kwargs)
+
+    def __new__(mcls, name, bases, namespace, /, **kwargs):
+        """Fix the __module__ attribute being set to abc for classes using metaclasses
+        inheriting from ABCMeta. Source: https://bugs.python.org/issue28869
+        """
+        if "__module__" not in namespace:
+            # globals()['__name__'] gives 'abc'
+            frame = inspect.currentframe()
+            if frame is not None:
+                # IronPython?
+                caller_globals = frame.f_back.f_globals
+                namespace["__module__"] = caller_globals["__name__"]
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        return cls
 
 
 class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
