@@ -57,25 +57,16 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         supertype: str,
         filepath: str,
         name: str,
-        load_args: Dict[str, Any] = None,
-        save_args: Dict[str, Any] = None,
+        credentials: Dict[str, Any],
         version: Version = None,
-        credentials: Dict[str, Any] = None,
-        fs_args: Dict[str, Any] = None,
+        **kwargs,
     ) -> None:
 
         protocol, _ = get_protocol_and_path(filepath, version)
         if protocol != "file":
             raise ValueError("Filepath can only be local path")
 
-        super().__init__(
-            filepath=filepath,
-            load_args=load_args,
-            save_args=save_args,
-            version=None,  # Do not apply versioning to local files
-            credentials=credentials,
-            fs_args=fs_args,
-        )
+        super().__init__(filepath=filepath, **kwargs)
 
         self._name = name
         self.__version = version
