@@ -20,10 +20,16 @@ class AzurePipelinesRunner(SequentialRunner):
         hook_manager: PluginManager = None,
         session_id: str = None,
     ) -> Dict[str, Any]:
-        unsatisfied = pipeline.inputs() - set(catalog.list())
-        for ds_name in unsatisfied:
-            catalog = catalog.shallow_copy()
-            catalog.add(ds_name, self.create_default_data_set(ds_name))
+        catalog = catalog.shallow_copy()
+
+        # Loop over input and output datasets in arguments to set their paths
+        for ds_name, ds_path in self.data_paths.items():
+            if ds_name in catalog.list():
+                ds = catalog._get_dataset(ds_name)
+                ds._filepath = Path(ds_path) / Path(ds._filepath).name
+                catalog.add(ds_name, ds, replace=True)
+            else:
+                catalog.add(ds_name, self.create_default_data_set(ds_name))
 
         return super().run(pipeline, catalog, hook_manager, session_id)
 
