@@ -15,6 +15,7 @@ def get_context_and_pipeline(ctx: CliContext, image: str, pipeline: str, params)
             pipeline,
             ctx.env,
             mgr.plugin_config,
+            mgr.context.catalog,
             image,
             params,
         )

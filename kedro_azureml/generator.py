@@ -6,6 +6,7 @@ from azure.ai.ml import Input, Output, command
 from azure.ai.ml.dsl import pipeline as azure_pipeline
 from azure.ai.ml.entities import Job
 from azure.ai.ml.entities._builders import Command
+from kedro.io import DataCatalog
 from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
@@ -20,11 +21,13 @@ class AzureMLPipelineGenerator:
         pipeline_name: str,
         kedro_environment: str,
         config: KedroAzureMLConfig,
+        catalog: DataCatalog,
         docker_image: Optional[str] = None,
         params: Optional[str] = None,
     ):
         self.kedro_environment = kedro_environment
         self.params = params
+        self.catalog = catalog
         self.docker_image = docker_image
         self.config = config
         self.pipeline_name = pipeline_name
@@ -83,7 +86,9 @@ class AzureMLPipelineGenerator:
             environment=self.config.azure.environment_name,  # TODO: enable creation using Docker image
             inputs={
                 self._sanitize_param_name(name): (
-                    Input(type="string") if name in pipeline.inputs() else Input()
+                    Input(type="string")
+                    if (name in pipeline.inputs() and "params:" in name)
+                    else Input()
                 )
                 for name in node.inputs
             },
@@ -132,8 +137,16 @@ class AzureMLPipelineGenerator:
                     parent_outputs = invoked_components[output_from_deps.name].outputs
                     azure_output = parent_outputs[sanitized_input_name]
                     azure_inputs[sanitized_input_name] = azure_output
+                elif node_input in self.catalog.list() and "params:" not in node_input:
+                    # 2. try to find dataset in catalog
+                    # TODO: check whether dataset is AzureMLDataSet
+                    ds = self.catalog._get_dataset(node_input)
+                    # TODO: add version support
+                    azure_inputs[sanitized_input_name] = Input(
+                        path=f"azureml:{ds.name}@latest"
+                    )
                 else:
-                    # 2. if not found, provide dummy input
+                    # 3. if not found, provide dummy input
                     azure_inputs[sanitized_input_name] = node_input
             invoked_components[node.name] = commands[node.name](**azure_inputs)
         return invoked_components

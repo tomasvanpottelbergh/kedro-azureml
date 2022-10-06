@@ -68,7 +68,7 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
 
         super().__init__(filepath=filepath, **kwargs)
 
-        self._name = name
+        self.name = name
         self.__version = version
 
         # TODO: support other authentication methods
@@ -80,13 +80,12 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
             )
 
     def _load(self) -> pd.DataFrame:
-        # with _get_azureml_client(None, self._amlconfig) as ml_client:
         if self.__version and self.__version.load:
             version, label = self.__version.load, None
         else:
             version, label = None, "latest"
 
-        data = self._ml_client.data.get(self._name, version=version, label=label)
+        data = self._ml_client.data.get(self.name, version=version, label=label)
 
         # Convert to short URI format to avoid problems
         path = re.sub("workspaces/([^/]+)/", "", data.path)
@@ -109,18 +108,18 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
             path=self._filepath,
             type=AssetTypes.URI_FILE,
             description="Data asset registered by the kedro-azureml plugin",
-            name=self._name,
+            name=self.name,
         )
 
         self._ml_client.data.create_or_update(data_asset)
 
     def _exists(self) -> bool:
         try:
-            self._ml_client.data.get(self._name, label="latest")
+            self._ml_client.data.get(self.name, label="latest")
         except ResourceNotFoundError:
             return False
 
         return True
 
     def _describe(self) -> Dict[str, Any]:
-        return dict(name=self._name, **super()._describe())
+        return dict(name=self.name, **super()._describe())
