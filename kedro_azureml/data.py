@@ -4,7 +4,7 @@ import re
 from abc import ABCMeta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict
+from typing import Any, Dict, Type, Union
 
 import pandas as pd
 from azure.ai.ml import MLClient
@@ -26,13 +26,13 @@ from kedro.io.core import (
 class DynamicInheritance(ABCMeta):
     def __call__(cls, supertype, *args, **kwargs):
         """Dynamically set the the superclass based on the supertype argument."""
-        if not isinstance(supertype, str):
-            raise TypeError("Parameter 'supertype' must be a string")
+        if isinstance(supertype, str):
+            # Resolve supertype string to type
+            supertype, _ = parse_dataset_definition({"type": supertype})
+        elif not isinstance(supertype, type):
+            raise TypeError("Parameter 'supertype' must be a string or a type")
 
-        # Resolve supertype string to type
-        supertype_cls, _ = parse_dataset_definition({"type": supertype})
-
-        new_cls = type(cls.__name__, (cls, supertype_cls), {})
+        new_cls = type(cls.__name__, (cls, supertype), {})
 
         return super(DynamicInheritance, new_cls).__call__(supertype, *args, **kwargs)
 
@@ -54,7 +54,7 @@ class DynamicInheritance(ABCMeta):
 class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
     def __init__(
         self,
-        supertype: str,
+        supertype: Union[str, Type],
         filepath: str,
         name: str,
         credentials: Dict[str, Any],
@@ -69,6 +69,7 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         super().__init__(filepath=filepath, **kwargs)
 
         self.name = name
+        self._supertype = supertype
         self.__version = version
 
         # TODO: support other authentication methods
@@ -123,3 +124,6 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
 
     def _describe(self) -> Dict[str, Any]:
         return dict(name=self.name, **super()._describe())
+
+    def convert_to_supertype(self):
+        self.__class__ = self._supertype
