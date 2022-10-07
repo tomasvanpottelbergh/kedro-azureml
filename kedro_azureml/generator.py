@@ -11,6 +11,7 @@ from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
 from kedro_azureml.config import KedroAzureMLConfig
+from kedro_azureml.data import AzureMLDataSet
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class AzureMLPipelineGenerator:
         catalog: DataCatalog,
         docker_image: Optional[str] = None,
         params: Optional[str] = None,
+        load_version: Dict[str, str] = {},
     ):
         self.kedro_environment = kedro_environment
         self.params = params
@@ -31,6 +33,7 @@ class AzureMLPipelineGenerator:
         self.docker_image = docker_image
         self.config = config
         self.pipeline_name = pipeline_name
+        self.load_versions = load_version
 
     def generate(self) -> Job:
         pipeline = self.get_kedro_pipeline()
@@ -113,6 +116,14 @@ class AzureMLPipelineGenerator:
             ].outputs[sanitized_output_name]
         return azure_pipeline_outputs
 
+    def _get_versioned_name(self, dataset_name: str):
+        version = self.load_versions.get(dataset_name)
+        if version is None or version == "latest":
+            versioned_name = f"{dataset_name}@latest"
+        else:
+            versioned_name = f"{dataset_name}:{version}"
+        return versioned_name
+
     def _connect_commands(self, pipeline: Pipeline, commands: Dict[str, Command]):
         """
         So far, only standalone commands were constructed, this method
@@ -139,12 +150,18 @@ class AzureMLPipelineGenerator:
                     azure_inputs[sanitized_input_name] = azure_output
                 elif node_input in self.catalog.list() and "params:" not in node_input:
                     # 2. try to find dataset in catalog
-                    # TODO: check whether dataset is AzureMLDataSet
-                    ds = self.catalog._get_dataset(node_input)
-                    # TODO: add version support
-                    azure_inputs[sanitized_input_name] = Input(
-                        path=f"azureml:{ds.name}@latest"
-                    )
+                    if isinstance(
+                        ds := self.catalog._get_dataset(node_input), AzureMLDataSet
+                    ):
+                        azure_inputs[sanitized_input_name] = Input(
+                            # TODO: report bug that @latest doesn't work with azureml: prefix
+                            path=self._get_versioned_name(ds.name)
+                        )
+                    else:
+                        raise TypeError(
+                            f"Dataset {node_input} is not an AzureMLDataSet. "
+                            "Only AzureMLDataSet is supported as an input to AzureMLPipeline."
+                        )
                 else:
                     # 3. if not found, provide dummy input
                     azure_inputs[sanitized_input_name] = node_input

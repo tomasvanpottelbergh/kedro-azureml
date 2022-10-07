@@ -2,9 +2,11 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import click
+from kedro.framework.cli.project import LOAD_VERSION_HELP
+from kedro.framework.cli.utils import _reformat_load_versions
 from kedro.framework.startup import ProjectMetadata
 
 from kedro_azureml.cli_functions import (
@@ -141,6 +143,14 @@ def init(
     type=str,
     help="Parameters override in form of JSON string",
 )
+@click.option(
+    "--load-version",
+    "-lv",
+    type=str,
+    multiple=True,
+    help=LOAD_VERSION_HELP,
+    callback=_reformat_load_versions,
+)
 @click.option("--wait-for-completion", type=bool, is_flag=True, default=False)
 @click.pass_obj
 @click.pass_context
@@ -151,6 +161,7 @@ def run(
     image: Optional[str],
     pipeline: str,
     params: str,
+    load_version: Dict[str, str],
     wait_for_completion: bool,
 ):
     """Runs the specified pipeline in Azure ML Pipelines; Additional parameters can be passed from command line.
@@ -167,7 +178,10 @@ def run(
         click.echo(f"Overriding image for run to: {image}")
 
     mgr: KedroContextManager
-    with get_context_and_pipeline(ctx, image, pipeline, params) as (mgr, az_pipeline):
+    with get_context_and_pipeline(ctx, image, pipeline, params, load_version) as (
+        mgr,
+        az_pipeline,
+    ):
         az_client = AzureMLPipelinesClient(az_pipeline, subscription_id)
 
         is_ok = az_client.run(
@@ -217,6 +231,14 @@ def run(
     help="Parameters override in form of JSON string",
 )
 @click.option(
+    "--load-version",
+    "-lv",
+    type=str,
+    multiple=True,
+    help=LOAD_VERSION_HELP,
+    callback=_reformat_load_versions,
+)
+@click.option(
     "-o",
     "--output",
     type=click.types.Path(exists=False, dir_okay=False),
@@ -225,11 +247,19 @@ def run(
 )
 @click.pass_obj
 def compile(
-    ctx: CliContext, image: Optional[str], pipeline: str, params: list, output: str
+    ctx: CliContext,
+    image: Optional[str],
+    pipeline: str,
+    params: list,
+    load_version: Dict[str, str],
+    output: str,
 ):
     """Compiles the pipeline into YAML format"""
     params = json.dumps(p) if (p := parse_extra_params(params)) else ""
-    with get_context_and_pipeline(ctx, image, pipeline, params) as (_, az_pipeline):
+    with get_context_and_pipeline(ctx, image, pipeline, params, load_version) as (
+        _,
+        az_pipeline,
+    ):
         Path(output).write_text(str(az_pipeline))
         click.echo(f"Compiled pipeline to {output}")
 

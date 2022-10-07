@@ -1,5 +1,6 @@
 import json
 from contextlib import contextmanager
+from typing import Dict
 
 import click
 
@@ -8,7 +9,9 @@ from kedro_azureml.utils import CliContext, KedroContextManager
 
 
 @contextmanager
-def get_context_and_pipeline(ctx: CliContext, image: str, pipeline: str, params):
+def get_context_and_pipeline(
+    ctx: CliContext, image: str, pipeline: str, params, load_version: Dict[str, str]
+):
     with KedroContextManager(ctx.metadata.package_name, ctx.env) as mgr:
 
         generator = AzureMLPipelineGenerator(
@@ -18,6 +21,7 @@ def get_context_and_pipeline(ctx: CliContext, image: str, pipeline: str, params)
             mgr.context.catalog,
             image,
             params,
+            load_version,
         )
         az_pipeline = generator.generate()
         yield mgr, az_pipeline
