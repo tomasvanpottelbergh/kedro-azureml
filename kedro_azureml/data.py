@@ -11,8 +11,9 @@ from azure.ai.ml import MLClient
 from azure.ai.ml._artifacts._artifact_utilities import (
     download_artifact_from_aml_uri,
 )
-from azure.ai.ml.constants import AssetTypes
-from azure.ai.ml.entities import Data
+
+# from azure.ai.ml.constants import AssetTypes
+# from azure.ai.ml.entities import Data
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from kedro.io.core import (
@@ -105,14 +106,15 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
     def _save(self, data: pd.DataFrame) -> None:
         super()._save(data)
 
-        data_asset = Data(
-            path=self._filepath,
-            type=AssetTypes.URI_FILE,
-            description="Data asset registered by the kedro-azureml plugin",
-            name=self.name,
-        )
+        # FIXME: re-enable when "safe" solution found
+        # data_asset = Data(
+        #     path=self._filepath,
+        #     type=AssetTypes.URI_FILE,
+        #     description="Data asset registered by the kedro-azureml plugin",
+        #     name=self.name,
+        # )
 
-        self._ml_client.data.create_or_update(data_asset)
+        # self._ml_client.data.create_or_update(data_asset)
 
     def _exists(self) -> bool:
         try:
