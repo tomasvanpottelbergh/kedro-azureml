@@ -11,7 +11,7 @@ from kedro.pipeline import Pipeline
 from kedro.pipeline.node import Node
 
 from kedro_azureml.config import KedroAzureMLConfig
-from kedro_azureml.data import AzureMLDataSet
+from kedro_azureml.data import AzureMLInputDataSet
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ class AzureMLPipelineGenerator:
                 elif node_input in self.catalog.list() and "params:" not in node_input:
                     # 2. try to find dataset in catalog
                     if isinstance(
-                        ds := self.catalog._get_dataset(node_input), AzureMLDataSet
+                        ds := self.catalog._get_dataset(node_input), AzureMLInputDataSet
                     ):
                         azure_inputs[sanitized_input_name] = Input(
                             # TODO: report bug that @latest doesn't work with azureml: prefix

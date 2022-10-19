@@ -7,7 +7,7 @@ from kedro.pipeline import Pipeline
 from kedro.runner import SequentialRunner
 from pluggy import PluginManager
 
-from kedro_azureml.data import AzureMLDataSet
+from kedro_azureml.data import AzureMLInputDataSet
 
 
 class AzurePipelinesRunner(SequentialRunner):
@@ -28,7 +28,7 @@ class AzurePipelinesRunner(SequentialRunner):
         for ds_name, ds_path in self.data_paths.items():
             if ds_name in catalog.list():
                 ds = catalog._get_dataset(ds_name)
-                if isinstance(ds, AzureMLDataSet):
+                if isinstance(ds, AzureMLInputDataSet):
                     ds.convert_to_supertype()
                 ds._filepath = Path(ds_path) / Path(ds._filepath).name
                 ds._version = None

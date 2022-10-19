@@ -13,9 +13,6 @@ from azure.ai.ml import MLClient
 from azure.ai.ml._artifacts._artifact_utilities import (
     download_artifact_from_aml_uri,
 )
-
-# from azure.ai.ml.constants import AssetTypes
-# from azure.ai.ml.entities import Data
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from cachetools import cachedmethod
@@ -58,7 +55,7 @@ class DynamicInheritance(ABCMeta):
         return cls
 
 
-class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
+class AzureMLInputDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
     def __init__(
         self,
         supertype: Union[str, Type],
@@ -125,20 +122,7 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         return super()._load()
 
     def _save(self, data: pd.DataFrame) -> None:
-        raise NotImplementedError(
-            "Saving to Azure ML Data Assets from a local run is not supported"
-        )
-
-        # FIXME: re-enable when "safe" solution found
-        # super()._save(data)
-        # data_asset = Data(
-        #     path=self._filepath,
-        #     type=AssetTypes.URI_FILE,
-        #     description="Data asset registered by the kedro-azureml plugin",
-        #     name=self.name,
-        # )
-
-        # self._ml_client.data.create_or_update(data_asset)
+        raise NotImplementedError("Saving to a AzureMLInputDataSet is not supported")
 
     def _exists(self) -> bool:
         try:
