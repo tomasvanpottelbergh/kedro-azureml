@@ -155,7 +155,7 @@ class AzureMLPipelineGenerator:
                     ):
                         azure_inputs[sanitized_input_name] = Input(
                             # TODO: report bug that @latest doesn't work with azureml: prefix
-                            path=self._get_versioned_name(ds.name)
+                            path=self._get_versioned_name(ds._name)
                         )
                     else:
                         raise TypeError(

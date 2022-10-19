@@ -2,6 +2,8 @@ import inspect
 import json
 import re
 from abc import ABCMeta
+from functools import partial
+from operator import attrgetter
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Type, Union
@@ -16,9 +18,13 @@ from azure.ai.ml._artifacts._artifact_utilities import (
 # from azure.ai.ml.entities import Data
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
+from cachetools import cachedmethod
+from cachetools.keys import hashkey
 from kedro.io.core import (
     AbstractVersionedDataSet,
+    DataSetNotFoundError,
     Version,
+    VersionNotFoundError,
     get_protocol_and_path,
     parse_dataset_definition,
 )
@@ -67,11 +73,8 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         if protocol != "file":
             raise ValueError("Filepath can only be local path")
 
-        super().__init__(filepath=filepath, **kwargs)
-
-        self.name = name
+        self._name = name
         self._supertype = supertype
-        self.__version = version
 
         # TODO: support other authentication methods
         with TemporaryDirectory() as tmp_dir:
@@ -81,13 +84,31 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
                 credential=DefaultAzureCredential(), path=str(config_path.absolute())
             )
 
-    def _load(self) -> pd.DataFrame:
-        if self.__version and self.__version.load:
-            version, label = self.__version.load, None
-        else:
-            version, label = None, "latest"
+        if version is None:
+            version = Version(self._get_latest_version(), None)
 
-        data = self._ml_client.data.get(self.name, version=version, label=label)
+        super().__init__(filepath=filepath, version=version, **kwargs)
+
+    def _get_latest_version(self) -> str:
+        try:
+            return self._ml_client.data.get(self._name, label="latest").version
+        except ResourceNotFoundError:
+            raise DataSetNotFoundError(f"Did not find Azure ML Data Asset for {self}")
+
+    @cachedmethod(cache=attrgetter("_version_cache"), key=partial(hashkey, "load"))
+    def _fetch_latest_load_version(self) -> str:
+        return self._get_latest_version()
+
+    def _get_aml_dataset(self):
+        return self._ml_client.data.get(self._name, version=self.resolve_load_version())
+
+    def _load(self) -> pd.DataFrame:
+        try:
+            data = self._get_aml_dataset()
+        except ResourceNotFoundError:
+            raise VersionNotFoundError(
+                f"Did not find version {self.resolve_load_version()} for {self}"
+            )
 
         # Convert to short URI format to avoid problems
         path = re.sub("workspaces/([^/]+)/", "", data.path)
@@ -95,7 +116,7 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         path = re.sub("resource[gG]roups/([^/]+)/", "", path)
 
         download_artifact_from_aml_uri(
-            path, Path(self._filepath).parent, self._ml_client.datastores
+            path, self._get_load_path().parent, self._ml_client.datastores
         )
 
         # TODO: check whether file exists at path/rename
@@ -104,9 +125,12 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
         return super()._load()
 
     def _save(self, data: pd.DataFrame) -> None:
-        super()._save(data)
+        raise NotImplementedError(
+            "Saving to Azure ML Data Assets from a local run is not supported"
+        )
 
         # FIXME: re-enable when "safe" solution found
+        # super()._save(data)
         # data_asset = Data(
         #     path=self._filepath,
         #     type=AssetTypes.URI_FILE,
@@ -118,14 +142,14 @@ class AzureMLDataSet(AbstractVersionedDataSet, metaclass=DynamicInheritance):
 
     def _exists(self) -> bool:
         try:
-            self._ml_client.data.get(self.name, label="latest")
+            self._get_aml_dataset()
         except ResourceNotFoundError:
             return False
 
         return True
 
     def _describe(self) -> Dict[str, Any]:
-        return dict(name=self.name, **super()._describe())
+        return dict(name=self._name, **super()._describe())
 
     def convert_to_supertype(self):
         self.__class__ = self._supertype
