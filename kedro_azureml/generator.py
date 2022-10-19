@@ -159,8 +159,8 @@ class AzureMLPipelineGenerator:
                         )
                     else:
                         raise TypeError(
-                            f"Dataset {node_input} is not an AzureMLDataSet. "
-                            "Only AzureMLDataSet is supported as an input to AzureMLPipeline."
+                            f"Dataset {node_input} is not an AzureMLInputDataSet. "
+                            "Only AzureMLInputDataSet is supported as an input to AzureMLPipeline."
                         )
                 else:
                     # 3. if not found, provide dummy input
