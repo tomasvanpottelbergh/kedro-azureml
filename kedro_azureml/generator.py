@@ -99,6 +99,7 @@ class AzureMLPipelineGenerator:
                 self._sanitize_param_name(name): Output() for name in node.outputs
             },
             code=".",
+            is_deterministic=("deterministic" in node.tags),
         )
 
     def _gather_pipeline_outputs(self, pipeline: Pipeline, invoked_components):
