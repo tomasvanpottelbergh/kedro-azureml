@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import Any, Dict, Type, Union
 
 from kedro.io.core import (
@@ -96,8 +95,7 @@ class AzureMLPipelineDataSet(AbstractDataSet):
 
     @property
     def path(self) -> str:
-        logger.info(f"Using folder {self.folder} for dataset {self._dataset_config}")
-        return str(Path(self.folder) / Path(self._dataset_config[self._filepath_arg]))
+        return f"{self.folder}/{self._dataset_config[self._filepath_arg]}"
 
     @property
     def _filepath(self) -> str:
