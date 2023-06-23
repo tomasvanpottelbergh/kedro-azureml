@@ -39,6 +39,7 @@ class AzureMLFolderDataSet(AzureMLPipelineDataSet, AbstractVersionedDataSet):
         self._version = version
         # 1 entry for load version, 1 for save version
         self._version_cache = Cache(maxsize=2)  # type: Cache
+        self._download = False
         self._local_run = False
         self._azureml_config = None
 
@@ -79,7 +80,7 @@ class AzureMLFolderDataSet(AzureMLPipelineDataSet, AbstractVersionedDataSet):
             )
 
     def _load(self) -> Any:
-        if self._local_run:
+        if self._download:
             try:
                 azureml_ds = self._get_azureml_dataset()
             except ResourceNotFoundError:
